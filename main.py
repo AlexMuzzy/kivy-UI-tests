@@ -7,6 +7,7 @@ from matplotlib import cm
 from PIL import Image
 from scipy.ndimage import gaussian_filter
 import random
+import time
 
 
 #  class in which we are creating the canvas
@@ -24,18 +25,24 @@ class CanvasWidget(Widget):
 
     def __init__(self, **kwargs):
         super(CanvasWidget, self).__init__(**kwargs)
-        image = np.asarray(Image.open("maxresdefault.jpg"))
-        image_resolution = image.shape[:-1]
-        ccd_frame = np.zeros(image_resolution)
-        ccd_frame = generate_random_points(ccd_frame, 3)
-        ccd_frame = gaussian_filter(ccd_frame, sigma=75.0)
-        ccd_frame = cm.inferno(normalise_matrix(ccd_frame))[:, :, :-1]
-        self.tex = Texture.create(size=(image_resolution[1], image_resolution[0]))
-        self.image = image * ccd_frame
+        self.fps = 10
+        self.image = np.asarray(Image.open("maxresdefault.jpg"))
+        self.image_resolution = self.image.shape[:-1]
+        self.tex = Texture.create(size=(self.image_resolution[1], self.image_resolution[0]))
+        self.update()
+
+    def update(self):
+        ccd_frame = np.zeros(self.image_resolution)
+        ccd_frame = generate_random_points(ccd_frame, 20)
+        ccd_frame = gaussian_filter(ccd_frame, sigma=25.0)
+        ccd_frame = normalise_matrix(ccd_frame)
+        ccd_frame = np.repeat(ccd_frame[:, :, np.newaxis], 4, axis=2)
+        # ccd_frame = cm.inferno(ccd_frame)
+        self.image = np.array(ccd_frame * 255).astype(np.uint8)
         self.image = np.flipud(self.image)
         self.image = self.image.astype(np.ubyte)
 
-        self.tex.blit_buffer(self.image.tobytes(), colorfmt='rgb')
+        self.tex.blit_buffer(self.image.tobytes(), colorfmt='rgba')
 
         # Arranging Canvas
         with self.canvas:
@@ -44,7 +51,7 @@ class CanvasWidget(Widget):
                                   size=(self.width / 2.,
                                         self.height / 2.),
                                   texture=self.tex,
-                                  color=Color(1, 1, 1, mode='rgb'))
+                                  color=Color(1, 1, 1, mode='rgba'))
 
             # Update the canvas as the screen size change
             self.bind(pos=self.update_rect,
